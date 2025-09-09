@@ -35,16 +35,6 @@
             z-index: 100;
         }
         
-        .controls {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 20px;
-            z-index: 100;
-        }
-        
         .btn {
             background: rgba(0, 255, 0, 0.3);
             border: 2px solid #00ff00;
@@ -167,17 +157,13 @@
     <div id="startOverlay" class="start-overlay">
         <h1>Space Invaders</h1>
         <p>by Felix Schmidt</p>
-        <div class="click-hint">Klick um zu starten</div>
+        <div class="click-hint">Klick oder Touch um zu starten</div>
     </div>
 
     <audio id="levelClearAudio" src="https://vgmsite.com/soundtracks/space-invaders-gbc-gb/ynphmzbe/14.%20Level%20Clear.mp3" preload="auto"></audio>
     <audio id="gameOverAudio" src="https://vgmsite.com/soundtracks/space-invaders-gbc-gb/zvuadquv/15.%20Game%20Over.mp3" preload="auto"></audio>
     <audio id="backgroundMusic" src="https://kappa.vgmsite.com/soundtracks/space-invaders-2008/sqptcwhikg/09.%20atom%E2%84%A2%20%26%20Masaki%20Sakamoto%20-%20COSMOPARTICLEFUNK.mp3" loop preload="auto"></audio>
 
-    <div class="controls">
-        <button class="btn" id="leftBtn">◀ Links</button>
-        <button class="btn" id="rightBtn">Rechts ▶</button>
-    </div>
     
     <div class="game-over" id="gameOver">
         <h2>Game Over!</h2>
@@ -209,22 +195,138 @@
         
         function playSound(frequency, duration, type = 'square') {
             if (!audioContext) return;
-            
+
             const oscillator = audioContext.createOscillator();
             const envelope = audioContext.createGain();
-            
+
             oscillator.connect(envelope);
             envelope.connect(gainNode);
-            
+
             oscillator.frequency.value = frequency;
             oscillator.type = type;
-            
+
             envelope.gain.setValueAtTime(0, audioContext.currentTime);
             envelope.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
             envelope.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-            
+
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + duration);
+        }
+
+        function playExplosionSound() {
+            if (!audioContext) return;
+
+            // Mehrere Oszillatoren für komplexeren Explosionssound
+            const oscillators = [];
+            const frequencies = [200, 300, 400, 600, 800];
+            const types = ['sawtooth', 'square', 'triangle', 'sawtooth', 'square'];
+
+            frequencies.forEach((freq, index) => {
+                const oscillator = audioContext.createOscillator();
+                const envelope = audioContext.createGain();
+                const filter = audioContext.createBiquadFilter();
+
+                oscillator.connect(filter);
+                filter.connect(envelope);
+                envelope.connect(gainNode);
+
+                oscillator.frequency.value = freq;
+                oscillator.type = types[index];
+
+                // Filter für mehr Tiefe
+                filter.type = 'lowpass';
+                filter.frequency.value = 1000;
+                filter.Q.value = 5;
+
+                envelope.gain.setValueAtTime(0, audioContext.currentTime);
+                envelope.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.01);
+                envelope.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+
+                // Filter-Frequenz über Zeit verringern
+                filter.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+
+                oscillators.push({oscillator, envelope});
+            });
+
+            // Zusätzlicher tiefer Bass-Impuls
+            setTimeout(() => {
+                const bassOsc = audioContext.createOscillator();
+                const bassEnv = audioContext.createGain();
+
+                bassOsc.connect(bassEnv);
+                bassEnv.connect(gainNode);
+
+                bassOsc.frequency.value = 80;
+                bassOsc.type = 'sine';
+
+                bassEnv.gain.setValueAtTime(0, audioContext.currentTime);
+                bassEnv.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+                bassEnv.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+
+                bassOsc.start(audioContext.currentTime);
+                bassOsc.stop(audioContext.currentTime + 0.2);
+            }, 50);
+        }
+
+        function playLifeLostSound() {
+            if (!audioContext) return;
+
+            // Absteigende Tonfolge für dramatischen Effekt
+            const notes = [400, 350, 300, 250, 200, 150];
+            let delay = 0;
+
+            notes.forEach((freq, index) => {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const envelope = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+
+                    oscillator.connect(filter);
+                    filter.connect(envelope);
+                    envelope.connect(gainNode);
+
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'sawtooth';
+
+                    // Filter für metallischen Klang
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq;
+                    filter.Q.value = 10;
+
+                    const duration = 0.3 - (index * 0.03); // Kürzere Töne am Ende
+
+                    envelope.gain.setValueAtTime(0, audioContext.currentTime);
+                    envelope.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+                    envelope.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + duration);
+                }, delay);
+
+                delay += 80; // Zeit zwischen Tönen
+            });
+
+            // Zusätzlicher tiefer Unterton
+            setTimeout(() => {
+                const bassOsc = audioContext.createOscillator();
+                const bassEnv = audioContext.createGain();
+
+                bassOsc.connect(bassEnv);
+                bassEnv.connect(gainNode);
+
+                bassOsc.frequency.value = 100;
+                bassOsc.type = 'triangle';
+
+                bassEnv.gain.setValueAtTime(0, audioContext.currentTime);
+                bassEnv.gain.linearRampToValueAtTime(0.15, audioContext.currentTime + 0.01);
+                bassEnv.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.8);
+
+                bassOsc.start(audioContext.currentTime);
+                bassOsc.stop(audioContext.currentTime + 0.8);
+            }, 100);
         }
         
         // Spiel-Setup
@@ -284,8 +386,8 @@
         // Gegner erstellen
         function createEnemies() {
             enemies = [];
-            const rows = 4 + Math.floor(gameState.level / 2);
-            const cols = 8 + Math.floor(gameState.level / 3);
+            const rows = 4 + Math.floor(gameState.level / 3);
+            const cols = 8 + Math.floor(gameState.level / 4);
             
             for (let row = 0; row < Math.min(rows, 8); row++) {
                 for (let col = 0; col < Math.min(cols, 12); col++) {
@@ -294,10 +396,10 @@
                         y: row * 50 + 50,
                         width: 40,
                         height: 30,
-                        speed: 1 + gameState.level * 0.2,
+                        speed: 1 + gameState.level * 0.1,
                         direction: 1,
-                        type: row % 3,
-                        shootChance: 0.001 + gameState.level * 0.0005,
+                        type: (gameState.level - 1 + row) % 6,
+                        shootChance: 0.001 + gameState.level * 0.00025,
                         animFrame: 0,
                         lastShot: 0
                     });
@@ -348,7 +450,7 @@
                 y: enemy.y + enemy.height,
                 width: 4,
                 height: 12,
-                speed: 3 + gameState.level * 0.5
+                speed: 3 + gameState.level * 0.25
             });
             
             enemy.lastShot = now;
@@ -357,17 +459,55 @@
         
         // Zeichenfunktionen
         function drawStars() {
-            ctx.fillStyle = '#ffffff';
             stars.forEach(star => {
-                ctx.globalAlpha = star.brightness;
-                ctx.fillRect(star.x, star.y, star.size, star.size);
-                
+                const time = Date.now() * 0.001;
+                const twinkle = 0.3 + Math.sin(time * 2 + star.x * 0.01) * 0.4;
+                const alpha = star.brightness * twinkle;
+
+                ctx.globalAlpha = alpha;
+
+                // Mehrere Farben für Sterne
+                const colors = ['#ffffff', '#ffff88', '#ffcccc', '#ccccff', '#ccffff'];
+                const colorIndex = Math.floor(star.x * star.y) % colors.length;
+                ctx.fillStyle = colors[colorIndex];
+
+                // Zeichne Stern-Form anstatt Rechteck
+                const centerX = star.x + star.size / 2;
+                const centerY = star.y + star.size / 2;
+                const spikes = 5;
+                const outerRadius = star.size / 2;
+                const innerRadius = star.size / 4;
+
+                ctx.beginPath();
+                for (let i = 0; i < spikes * 2; i++) {
+                    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                    const angle = (i * Math.PI) / spikes;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Zusätzlicher Glüheffekt für hellere Sterne
+                if (twinkle > 0.6) {
+                    ctx.shadowColor = colors[colorIndex];
+                    ctx.shadowBlur = star.size * 2;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+
+                // Bewegung und Reset
                 star.y += star.speed;
-                star.brightness = 0.3 + Math.sin(Date.now() * 0.01 + star.x) * 0.3;
-                
+                star.brightness = 0.2 + Math.sin(time + star.x * 0.005) * 0.3;
+
                 if (star.y > canvas.height) {
                     star.y = -star.size;
                     star.x = Math.random() * canvas.width;
+                    star.speed = Math.random() * 2 + 0.5;
+                    star.size = Math.random() * 3 + 1;
                 }
             });
             ctx.globalAlpha = 1;
@@ -390,9 +530,12 @@
             const time = Date.now();
             enemies.forEach(enemy => {
                 const colors = [
-                    ['#ff0000', '#ff4444'],
-                    ['#ff8800', '#ffaa44'], 
-                    ['#8800ff', '#aa44ff']
+                    ['#ff0000', '#ff4444'],     // Rot - Level 1 Stil
+                    ['#ff8800', '#ffaa44'],     // Orange - Level 2 Stil
+                    ['#8800ff', '#aa44ff'],     // Lila - Level 3 Stil
+                    ['#00ff00', '#44ff44'],     // Grün - Level 4 Stil
+                    ['#0088ff', '#44aaff'],     // Blau - Level 5 Stil
+                    ['#ff0088', '#ff44aa']      // Pink - Level 6 Stil
                 ];
                 
                 const colorSet = colors[enemy.type];
@@ -401,11 +544,45 @@
                 
                 ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
                 
-                // Gegner-Details
+                // Gegner-Details basierend auf Typ
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(enemy.x + 8, enemy.y + 5, 6, 6);
-                ctx.fillRect(enemy.x + 26, enemy.y + 5, 6, 6);
-                ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 5);
+                if (enemy.type === 0) {
+                    // Typ 0: Standard Augen
+                    ctx.fillRect(enemy.x + 8, enemy.y + 5, 6, 6);
+                    ctx.fillRect(enemy.x + 26, enemy.y + 5, 6, 6);
+                    ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 5);
+                } else if (enemy.type === 1) {
+                    // Typ 1: Dreieckige Augen
+                    ctx.fillRect(enemy.x + 10, enemy.y + 5, 4, 8);
+                    ctx.fillRect(enemy.x + 26, enemy.y + 5, 4, 8);
+                    ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 3);
+                } else if (enemy.type === 2) {
+                    // Typ 2: Große Augen
+                    ctx.fillRect(enemy.x + 6, enemy.y + 3, 8, 8);
+                    ctx.fillRect(enemy.x + 26, enemy.y + 3, 8, 8);
+                    ctx.fillRect(enemy.x + 12, enemy.y + 18, 16, 6);
+                } else if (enemy.type === 3) {
+                    // Typ 3: Schmale Augen
+                    ctx.fillRect(enemy.x + 12, enemy.y + 5, 2, 6);
+                    ctx.fillRect(enemy.x + 26, enemy.y + 5, 2, 6);
+                    ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 2);
+                } else if (enemy.type === 4) {
+                    // Typ 4: Runde Augen
+                    ctx.beginPath();
+                    ctx.arc(enemy.x + 14, enemy.y + 8, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(enemy.x + 26, enemy.y + 8, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 4);
+                } else {
+                    // Typ 5: Kreuz-Details
+                    ctx.fillRect(enemy.x + 8, enemy.y + 5, 6, 2);
+                    ctx.fillRect(enemy.x + 11, enemy.y + 2, 2, 8);
+                    ctx.fillRect(enemy.x + 26, enemy.y + 5, 6, 2);
+                    ctx.fillRect(enemy.x + 29, enemy.y + 2, 2, 8);
+                    ctx.fillRect(enemy.x + 15, enemy.y + 20, 10, 3);
+                }
             });
         }
         
@@ -514,10 +691,10 @@
                     if (checkCollision(bullet, enemy)) {
                         bullets.splice(bulletIndex, 1);
                         enemies.splice(enemyIndex, 1);
-                        gameState.score += 10 + gameState.level * 5;
+                        gameState.score += 10 + gameState.level * 3;
                         
                         createParticles(enemy.x + enemy.width/2, enemy.y + enemy.height/2, 8, '#ffff00');
-                        playSound(600, 0.2, 'sawtooth');
+                        playExplosionSound();
                     }
                 });
             });
@@ -528,7 +705,7 @@
                     enemyBullets.splice(bulletIndex, 1);
                     gameState.lives--;
                     createParticles(player.x + player.width/2, player.y + player.height/2, 12, '#ff0000');
-                    playSound(200, 0.5, 'square');
+                    playLifeLostSound();
                     
                     if (gameState.lives <= 0) {
                         endGame();
@@ -582,8 +759,9 @@
             levelCompleteDiv.querySelector('button').style.display = 'none';
             levelCompleteDiv.style.display = 'block';
 
-            // MP3 abspielen
+            // MP3 abspielen (500% leiser)
             const audio = document.getElementById('levelClearAudio');
+            audio.volume = 0.2;
             audio.currentTime = 0;
             audio.play();
 
@@ -600,7 +778,8 @@
         
         function nextLevel() {
             gameState.level++;
-            gameState.shootCooldown = Math.max(150, gameState.shootCooldown - 20);
+            // Langsamere Schwierigkeitssteigerung: shootCooldown nur um 10 verringern
+            gameState.shootCooldown = Math.max(150, gameState.shootCooldown - 10);
 
             // UI zurücksetzen
             const levelCompleteDiv = document.getElementById('levelComplete');
@@ -633,8 +812,9 @@
             const restartBtn = gameOverDiv.querySelector('button');
             restartBtn.style.display = 'none';
 
-            // MP3 abspielen
+            // MP3 abspielen (500% leiser)
             const audio = document.getElementById('gameOverAudio');
+            audio.volume = 0.2;
             audio.currentTime = 0;
             audio.play();
 
@@ -673,36 +853,7 @@
         }
         
         // Event Listeners
-        const leftBtn = document.getElementById('leftBtn');
-        const rightBtn = document.getElementById('rightBtn');
-        
-        // Touch-Steuerung
-        leftBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            player.moving = -1;
-        });
-        
-        leftBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            player.moving = 0;
-        });
-        
-        rightBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            player.moving = 1;
-        });
-        
-        rightBtn.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            player.moving = 0;
-        });
-        
-        // Mouse-Steuerung
-        leftBtn.addEventListener('mousedown', () => player.moving = -1);
-        leftBtn.addEventListener('mouseup', () => player.moving = 0);
-        rightBtn.addEventListener('mousedown', () => player.moving = 1);
-        rightBtn.addEventListener('mouseup', () => player.moving = 0);
-        
+
         // Tastatur-Steuerung
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
@@ -802,9 +953,25 @@
 
         // Start Overlay Event Listener
         const startOverlay = document.getElementById('startOverlay');
-        startOverlay.addEventListener('click', () => {
+
+        const startGameFunction = () => {
+            // Hintergrundmusik starten
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.volume = 0.3;
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+
             startOverlay.style.display = 'none';
             startGame();
+        };
+
+        // Klick-Event
+        startOverlay.addEventListener('click', startGameFunction);
+
+        // Touch-Event
+        startOverlay.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Verhindert Standard-Touch-Verhalten
+            startGameFunction();
         });
 
         // Spiel-Loop
@@ -828,11 +995,6 @@
             createStars();
             createEnemies();
             gameState.gameRunning = true;
-
-            // Hintergrundmusik starten
-            const bgMusic = document.getElementById('backgroundMusic');
-            bgMusic.volume = 0.3;
-            bgMusic.play();
 
             gameLoop();
         }
