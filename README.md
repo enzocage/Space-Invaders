@@ -30,8 +30,9 @@ Ein klassisches Space Invaders Spiel, komplett in HTML5 Canvas und JavaScript im
 - **Leertaste**: Schießen (optional, Auto-Schuss ist aktiviert)
 
 ### Mobile (Touch)
-- **◀ Links**: Raumschiff nach links bewegen
-- **Rechts ▶**: Raumschiff nach rechts bewegen
+- **◀ Links / Rechts ▶ Buttons**: Raumschiff mit Buttons steuern
+- **Direkte Touch-Steuerung**: Tippe auf linke/rechte Bildschirmhälfte
+- **Mehrfach-Touch**: Bei gleichzeitiger Berührung zählt die letzte Touch-Position
 - **Tippen auf Canvas**: Audio aktivieren
 
 ## 🚀 Installation & Verwendung

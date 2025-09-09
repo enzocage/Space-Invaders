@@ -97,6 +97,62 @@
                 font-size: 18px;
             }
         }
+
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #000428, #004e92, #000428);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            animation: colorShift 3s ease-in-out infinite;
+        }
+
+        .start-overlay h1 {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 0;
+            text-align: center;
+            animation: textGlow 2s ease-in-out infinite alternate;
+        }
+
+        .start-overlay p {
+            font-size: 2rem;
+            margin: 20px 0;
+            text-align: center;
+            animation: textGlow 2s ease-in-out infinite alternate-reverse;
+        }
+
+        .start-overlay .click-hint {
+            font-size: 1.2rem;
+            margin-top: 40px;
+            opacity: 0.7;
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+
+        @keyframes colorShift {
+            0% { background: linear-gradient(45deg, #000428, #004e92, #000428); }
+            25% { background: linear-gradient(45deg, #004e92, #0080ff, #004e92); }
+            50% { background: linear-gradient(45deg, #0080ff, #00ff80, #0080ff); }
+            75% { background: linear-gradient(45deg, #00ff80, #ff8000, #00ff80); }
+            100% { background: linear-gradient(45deg, #ff8000, #000428, #ff8000); }
+        }
+
+        @keyframes textGlow {
+            from { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00ff00; }
+            to { text-shadow: 0 0 20px #00ff00, 0 0 30px #00ffff, 0 0 40px #ffff00; }
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -107,7 +163,17 @@
     </div>
     
     <canvas id="gameCanvas"></canvas>
-    
+
+    <div id="startOverlay" class="start-overlay">
+        <h1>Space Invaders</h1>
+        <p>by Felix Schmidt</p>
+        <div class="click-hint">Klick um zu starten</div>
+    </div>
+
+    <audio id="levelClearAudio" src="https://vgmsite.com/soundtracks/space-invaders-gbc-gb/ynphmzbe/14.%20Level%20Clear.mp3" preload="auto"></audio>
+    <audio id="gameOverAudio" src="https://vgmsite.com/soundtracks/space-invaders-gbc-gb/zvuadquv/15.%20Game%20Over.mp3" preload="auto"></audio>
+    <audio id="backgroundMusic" src="https://kappa.vgmsite.com/soundtracks/space-invaders-2008/sqptcwhikg/09.%20atom%E2%84%A2%20%26%20Masaki%20Sakamoto%20-%20COSMOPARTICLEFUNK.mp3" loop preload="auto"></audio>
+
     <div class="controls">
         <button class="btn" id="leftBtn">◀ Links</button>
         <button class="btn" id="rightBtn">Rechts ▶</button>
@@ -504,7 +570,29 @@
             const bonus = gameState.lives * 100 + enemies.length * 50;
             gameState.score += bonus;
             document.getElementById('levelBonus').textContent = bonus;
-            document.getElementById('levelComplete').style.display = 'block';
+
+            // Hintergrundmusik pausieren
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.pause();
+
+            // Level Complete UI anzeigen mit "next level:" Text
+            const levelCompleteDiv = document.getElementById('levelComplete');
+            levelCompleteDiv.querySelector('h2').textContent = 'next level:';
+            levelCompleteDiv.querySelector('p').style.display = 'none';
+            levelCompleteDiv.querySelector('button').style.display = 'none';
+            levelCompleteDiv.style.display = 'block';
+
+            // MP3 abspielen
+            const audio = document.getElementById('levelClearAudio');
+            audio.currentTime = 0;
+            audio.play();
+
+            // Nach Audio-Ende nächstes Level starten
+            audio.addEventListener('ended', () => {
+                nextLevel();
+            }, { once: true });
+
+            // Soundeffekte für Level Complete
             playSound(800, 0.3, 'square');
             setTimeout(() => playSound(1000, 0.3, 'square'), 200);
             setTimeout(() => playSound(1200, 0.3, 'square'), 400);
@@ -513,7 +601,18 @@
         function nextLevel() {
             gameState.level++;
             gameState.shootCooldown = Math.max(150, gameState.shootCooldown - 20);
-            document.getElementById('levelComplete').style.display = 'none';
+
+            // UI zurücksetzen
+            const levelCompleteDiv = document.getElementById('levelComplete');
+            levelCompleteDiv.querySelector('h2').textContent = 'Level Complete!';
+            levelCompleteDiv.querySelector('p').style.display = 'block';
+            levelCompleteDiv.querySelector('button').style.display = 'block';
+            levelCompleteDiv.style.display = 'none';
+
+            // Hintergrundmusik fortsetzen
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.play();
+
             createEnemies();
             gameState.gameRunning = true;
         }
@@ -521,7 +620,30 @@
         function endGame() {
             gameState.gameRunning = false;
             document.getElementById('finalScore').textContent = gameState.score;
-            document.getElementById('gameOver').style.display = 'block';
+
+            // Hintergrundmusik pausieren
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.pause();
+
+            // Game Over UI anzeigen
+            const gameOverDiv = document.getElementById('gameOver');
+            gameOverDiv.style.display = 'block';
+
+            // Button verstecken bis MP3 fertig
+            const restartBtn = gameOverDiv.querySelector('button');
+            restartBtn.style.display = 'none';
+
+            // MP3 abspielen
+            const audio = document.getElementById('gameOverAudio');
+            audio.currentTime = 0;
+            audio.play();
+
+            // Nach Audio-Ende Button anzeigen
+            audio.addEventListener('ended', () => {
+                restartBtn.style.display = 'block';
+            }, { once: true });
+
+            // Soundeffekt für Game Over
             playSound(150, 1, 'sawtooth');
         }
         
@@ -535,12 +657,17 @@
                 lastShot: 0,
                 shootCooldown: 300
             };
-            
+
             player.x = canvas.width / 2 - 25;
             bullets = [];
             enemyBullets = [];
             particles = [];
-            
+
+            // Hintergrundmusik starten
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.currentTime = 0;
+            bgMusic.play();
+
             document.getElementById('gameOver').style.display = 'none';
             createEnemies();
         }
@@ -603,7 +730,83 @@
                 initAudio();
             }
         });
-        
+
+        // Direkte Touch-Steuerung auf dem Canvas
+        let activeTouches = new Map();
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!audioContext) {
+                initAudio();
+            }
+
+            // Alle aktuellen Touches verarbeiten
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const rect = canvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+
+                // Bestimme die Seite basierend auf der X-Position
+                const side = x < canvas.width / 2 ? -1 : 1;
+                activeTouches.set(touch.identifier, side);
+            }
+
+            // Setze die Bewegung basierend auf dem letzten Touch
+            if (activeTouches.size > 0) {
+                const lastTouch = Array.from(activeTouches.values()).pop();
+                player.moving = lastTouch;
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+
+            // Aktualisiere alle aktiven Touches
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (activeTouches.has(touch.identifier)) {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+
+                    // Aktualisiere die Seite für diesen Touch
+                    const side = x < canvas.width / 2 ? -1 : 1;
+                    activeTouches.set(touch.identifier, side);
+                }
+            }
+
+            // Setze die Bewegung basierend auf dem letzten Touch
+            if (activeTouches.size > 0) {
+                const lastTouch = Array.from(activeTouches.values()).pop();
+                player.moving = lastTouch;
+            }
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+
+            // Entferne beendete Touches
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                activeTouches.delete(touch.identifier);
+            }
+
+            // Wenn keine Touches mehr aktiv sind, stoppe die Bewegung
+            if (activeTouches.size === 0) {
+                player.moving = 0;
+            } else {
+                // Setze die Bewegung basierend auf dem letzten verbleibenden Touch
+                const lastTouch = Array.from(activeTouches.values()).pop();
+                player.moving = lastTouch;
+            }
+        });
+
+        // Start Overlay Event Listener
+        const startOverlay = document.getElementById('startOverlay');
+        startOverlay.addEventListener('click', () => {
+            startOverlay.style.display = 'none';
+            startGame();
+        });
+
         // Spiel-Loop
         function gameLoop() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -625,11 +828,17 @@
             createStars();
             createEnemies();
             gameState.gameRunning = true;
+
+            // Hintergrundmusik starten
+            const bgMusic = document.getElementById('backgroundMusic');
+            bgMusic.volume = 0.3;
+            bgMusic.play();
+
             gameLoop();
         }
         
-        // Spiel initialisieren
-        startGame();
+        // Spiel initialisieren - Overlay wird zuerst angezeigt
+        // startGame() wird durch Klick auf Overlay aufgerufen
     </script>
 </body>
 </html>
